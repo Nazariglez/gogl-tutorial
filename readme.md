@@ -1,0 +1,1 @@
+A rewrite in golang of OpenGL tutorials from https://github.com/opengl-tutorials/ogl 
