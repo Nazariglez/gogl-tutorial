@@ -10,6 +10,8 @@ import (
 
   "github.com/go-gl/glfw/v3.1/glfw"
   "github.com/go-gl/gl/v3.3-core/gl"
+
+  "../common"
 )
 
 func main() {
@@ -22,7 +24,7 @@ func main() {
 func initialize() {
   //initialize GLFW
   if err := glfw.Init(); err != nil {
-    log.Panic(err)
+    log.Fatal(err)
   }
 
   defer glfw.Terminate()
@@ -36,13 +38,13 @@ func initialize() {
   //Open a window and create its OpenGL context
   window, err := glfw.CreateWindow(1024, 768, "Tutorial 01", nil, nil)
   if err != nil {
-    log.Panic(err)
+    log.Fatal(err)
   }
 
   //Initalize GL
   window.MakeContextCurrent()
   if err := gl.Init(); err != nil {
-    log.Panic(err)
+    log.Fatal(err)
   }
 
   onWindowOpen(window)
@@ -67,19 +69,29 @@ func onWindowOpen(window *glfw.Window) {
   gl.GenBuffers(1, &vertexBuffer)
   //the following comands will talk about our 'vertexbuffer' buffer
   gl.BindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+
+  //size on bytes (*4 = float32)
+  sizeOfData := len(gVertexBufferData)*4
+
   //give our vertices to OpenGL
-  gl.BufferData(gl.ARRAY_BUFFER, len(gVertexBufferData), gl.Ptr(gVertexBufferData), gl.STATIC_DRAW)
+  gl.BufferData(gl.ARRAY_BUFFER, sizeOfData, gl.Ptr(gVertexBufferData), gl.STATIC_DRAW)
 
-
+  //Create and compile our GLSL program from the shaders
+  programID := common.LoadShader("vertexshader.vert", "fragmentshader.frag")
 
   // Ensure we can capture the escape key being pressed below
   window.SetInputMode(glfw.StickyKeysMode, glfw.True)
+
+  gl.ClearColor(0, 0, 0.4, 0)
 
   for {
     // Check if the ESC key was pressed or the window was closed
     if !(window.GetKey(glfw.KeyEscape) != glfw.Press && !window.ShouldClose()) {
       break
     }
+
+    gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    gl.UseProgram(programID)
 
     //1rst attribute buffer : vertices
     gl.EnableVertexAttribArray(0)
@@ -96,7 +108,6 @@ func onWindowOpen(window *glfw.Window) {
     //draw the triangle!
     gl.DrawArrays(gl.TRIANGLES, 0, 3) //starting from vertex 0; 3 vertices total -> 1 triangle
     gl.DisableVertexAttribArray(0)
-
 
     // Swap buffers
     window.SwapBuffers()
