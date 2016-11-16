@@ -120,6 +120,41 @@ func onWindowOpen(window *glfw.Window) {
       break
     }
 
+    //exercise1 "try changing the perspective" Press A
+    if window.GetKey(glfw.KeyA) == glfw.Press {
+      projection = mgl32.Perspective(mgl32.DegToRad(30.0), 4.0/4.0, 0.1, 100)
+      mvp = projection.Mul4(view.Mul4(model))
+    }
+
+    //exercise2 "use orthographic projection instead perspective" Press B
+    if window.GetKey(glfw.KeyB) == glfw.Press {
+      projection = mgl32.Ortho(-10, 10, -10, 10, 0, 100)
+      mvp = projection.Mul4(view.Mul4(model))
+    }
+
+    //exercise3 "modify ModelMatrix to translate, rotate, then scale the triangle" Translate Press T
+    if window.GetKey(glfw.KeyT) == glfw.Press {
+      model, mvp = translate(projection, view, model)
+    }
+
+    //exercise3 "modify ModelMatrix to translate, rotate, then scale the triangle" Rotate Press R
+    if window.GetKey(glfw.KeyR) == glfw.Press {
+      model, mvp = rotate(projection, view, model)
+    }
+
+    //exercise3 "modify ModelMatrix to translate, rotate, then scale the triangle" Scale Press S
+    if window.GetKey(glfw.KeyS) == glfw.Press {
+      model, mvp = scale(projection, view, model)
+    }
+
+    //exercise 4 scale, rotate, translate (correct order)
+    if window.GetKey(glfw.KeyC) == glfw.Press {
+      model, mvp = scale(projection, view, model)
+      model, mvp = rotate(projection, view, model)
+      model, mvp = translate(projection, view, model)
+    }
+
+
     gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     gl.UseProgram(programID)
 
@@ -147,4 +182,22 @@ func onWindowOpen(window *glfw.Window) {
     window.SwapBuffers()
     glfw.PollEvents()
   }
+}
+
+func translate(projection, view, model mgl32.Mat4) (mgl32.Mat4, mgl32.Mat4) {
+  translateMatrix := mgl32.Translate3D(0.5, -0.2, 0)
+  model = translateMatrix.Mul4(model)
+  return model, projection.Mul4(view.Mul4(model))
+}
+
+func rotate(projection, view, model mgl32.Mat4) (mgl32.Mat4, mgl32.Mat4) {
+  rotationMatrix := mgl32.HomogRotate3D(mgl32.DegToRad(10), mgl32.Vec3{0,1,0})
+  model = rotationMatrix.Mul4(model)
+  return model, projection.Mul4(view.Mul4(model))
+}
+
+func scale(projection, view, model mgl32.Mat4) (mgl32.Mat4, mgl32.Mat4) {
+  scaleMatrix := mgl32.Scale3D(1.1, 1, 0.9)
+  model = scaleMatrix.Mul4(model)
+  return model, projection.Mul4(view.Mul4(model))
 }
