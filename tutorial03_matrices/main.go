@@ -10,6 +10,7 @@ import (
 
   "github.com/go-gl/glfw/v3.1/glfw"
   "github.com/go-gl/gl/v3.3-core/gl"
+  "github.com/go-gl/mathgl/mgl32"
 
   "../common"
 )
@@ -36,7 +37,7 @@ func initialize() {
   glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile) //we don't want the old OpenGL
 
   //Open a window and create its OpenGL context
-  window, err := glfw.CreateWindow(1024, 768, "Tutorial 02", nil, nil)
+  window, err := glfw.CreateWindow(1024, 768, "Tutorial 03", nil, nil)
   if err != nil {
     log.Fatal(err)
   }
@@ -75,14 +76,43 @@ func onWindowOpen(window *glfw.Window) {
 
   //give our vertices to OpenGL
   gl.BufferData(gl.ARRAY_BUFFER, sizeOfData, gl.Ptr(gVertexBufferData), gl.STATIC_DRAW)
-
-  //Create and compile our GLSL program from the shaders
-  programID := common.LoadShader("vertexshader.vert", "fragmentshader.frag")
+  gl.ClearColor(0, 0, 0.4, 0)
 
   // Ensure we can capture the escape key being pressed below
   window.SetInputMode(glfw.StickyKeysMode, glfw.True)
 
-  gl.ClearColor(0, 0, 0.4, 0)
+  //Create and compile our GLSL program from the shaders
+  programID := common.LoadShader("vertexshader.vert", "fragmentshader.frag")
+
+  //Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
+  projection := mgl32.Perspective(mgl32.DegToRad(45.0), 4.0/3.0, 0.1, 100)
+
+  //Camera matrix
+  view := mgl32.LookAt(
+    4, 3, 3, //Camera is at (4,3,3), in world space
+    0, 0, 0, //and looks at the origin
+    0, 1, 0, //head is up (set to 0, -1, 0 to look upside-down)
+  )
+
+  /*
+  view := mgl32.LookAtV(
+    mgl.Vec3{4,3,3},
+    mgl.Vec3{0,0,0},
+    mgl.Vec3{0,1,0},
+  )
+   */
+
+  //model matrix : and identity matrix (model will be at te origin)
+  model := mgl32.Ident4()
+  //our ModelViewProjection : multiplication of our 3 matrices
+  mvp := projection.Mul4(view.Mul4(model))
+
+  //get a handle for our "MVP" uniform
+  //only during the initialisation
+  mvpPointer, free := gl.Strs("MVP")
+  defer free()
+  matrixID := gl.GetUniformLocation(programID, *mvpPointer)
+
 
   for {
     // Check if the ESC key was pressed or the window was closed
@@ -92,6 +122,10 @@ func onWindowOpen(window *glfw.Window) {
 
     gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     gl.UseProgram(programID)
+
+    //send our transformation to the currently bound shader, in the "MVP" uniform
+    //this is donde in the main loop since each model will have a different MVP matrix (At least for the M part)
+    gl.UniformMatrix4fv(matrixID, 1, false, &mvp[0])
 
     //1rst attribute buffer : vertices
     gl.EnableVertexAttribArray(0)
