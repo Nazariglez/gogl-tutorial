@@ -2,11 +2,21 @@
  * Created by nazarigonzalez on 16/11/16.
  */
 
+/*
+
+  Draw the cube AND the triangle, at different locations. You will need to generate 2 MVP matrices, to make 2 draw calls in the main loop, but only 1 shader is required.
+
+  Generate the color values yourself
+
+ */
+
 package main
 
 import (
   "runtime"
   "log"
+  "math/rand"
+  "time"
 
   "github.com/go-gl/glfw/v3.1/glfw"
   "github.com/go-gl/gl/v3.3-core/gl"
@@ -19,6 +29,7 @@ func main() {
   //https://github.com/go-gl/gl#usage
   runtime.LockOSThread()
 
+  rand.Seed(time.Now().UnixNano())
   initialize()
 }
 
@@ -104,57 +115,12 @@ var gVertexBufferData = []float32{
   1.0,-1.0, 1.0,
 }
 
-var gColorBufferData = []float32{
-  0.583,  0.771,  0.014,
-  0.609,  0.115,  0.436,
-  0.327,  0.483,  0.844,
-
-  0.822,  0.569,  0.201,
-  0.435,  0.602,  0.223,
-  0.310,  0.747,  0.185,
-
-  0.597,  0.770,  0.761,
-  0.559,  0.436,  0.730,
-  0.359,  0.583,  0.152,
-
-  0.483,  0.596,  0.789,
-  0.559,  0.861,  0.639,
-  0.195,  0.548,  0.859,
-
-  0.014,  0.184,  0.576,
-  0.771,  0.328,  0.970,
-  0.406,  0.615,  0.116,
-
-  0.676,  0.977,  0.133,
-  0.971,  0.572,  0.833,
-  0.140,  0.616,  0.489,
-
-  0.997,  0.513,  0.064,
-  0.945,  0.719,  0.592,
-  0.543,  0.021,  0.978,
-
-  0.279,  0.317,  0.505,
-  0.167,  0.620,  0.077,
-  0.347,  0.857,  0.137,
-
-  0.055,  0.953,  0.042,
-  0.714,  0.505,  0.345,
-  0.783,  0.290,  0.734,
-
-  0.722,  0.645,  0.174,
-  0.302,  0.455,  0.848,
-  0.225,  0.587,  0.040,
-
-  0.517,  0.713,  0.338,
-  0.053,  0.959,  0.120,
-  0.393,  0.621,  0.362,
-
-  0.673,  0.211,  0.457,
-  0.820,  0.883,  0.371,
-  0.982,  0.099,  0.879,
-}
-
 func onWindowOpen(window *glfw.Window) {
+  gColorBufferData := []float32{}
+  for i := 0; i < len(gVertexBufferData); i++ {
+    gColorBufferData = append(gColorBufferData, rand.Float32())
+  }
+
   var vertexArrayId uint32
   gl.GenVertexArrays(1, &vertexArrayId)
   gl.BindVertexArray(vertexArrayId)
@@ -171,6 +137,24 @@ func onWindowOpen(window *glfw.Window) {
 
   //give our vertices to OpenGL
   gl.BufferData(gl.ARRAY_BUFFER, sizeOfData, gl.Ptr(gVertexBufferData), gl.STATIC_DRAW)
+
+
+  //triangle
+  var triangleVertexArrayID uint32
+  gl.GenVertexArrays(1, &triangleVertexArrayID)
+  gl.BindVertexArray(vertexArrayId)
+
+  gTriangleBufferData := []float32{
+    -1.0, -1.0, 0.0,
+    1.0, -1.0, 0.0,
+    0.0, 1.0, 0.0,
+  }
+
+  var triangleBuffer uint32
+  gl.GenBuffers(1, &triangleBuffer)
+  gl.BindBuffer(gl.ARRAY_BUFFER, triangleBuffer)
+  gl.BufferData(gl.ARRAY_BUFFER, len(gTriangleBufferData)*4, gl.Ptr(gTriangleBufferData), gl.STATIC_DRAW)
+
 
   //color
   var colorBuffer uint32
@@ -189,12 +173,22 @@ func onWindowOpen(window *glfw.Window) {
   projection := mgl32.Perspective(mgl32.DegToRad(45.0), 4.0/3.0, 0.1, 100)
   view := mgl32.LookAtV(
     mgl32.Vec3{4,3,3}, //4,3,-3
-    mgl32.Vec3{0,0,0},
+    mgl32.Vec3{0,0,-1},
     mgl32.Vec3{0,1,0},
   )
 
   model := mgl32.Ident4()
   mvp := projection.Mul4(view.Mul4(model))
+
+  projection2 := mgl32.Perspective(mgl32.DegToRad(30.0), 4.0/3.0, 0.1, 100)
+  view2 := mgl32.LookAtV(
+    mgl32.Vec3{4,3,-3}, //4,3,-3
+    mgl32.Vec3{0,0,1},
+    mgl32.Vec3{0,1,0},
+  )
+
+  model2 := mgl32.Ident4()
+  mvp2 := projection2.Mul4(view2.Mul4(model2))
 
   mvpPointer, free := gl.Strs("MVP")
   defer free()
@@ -204,6 +198,7 @@ func onWindowOpen(window *glfw.Window) {
   gl.Enable(gl.DEPTH_TEST)
   //accept fragment if it close to the camera than the former one
   gl.DepthFunc(gl.LESS)
+
 
   for {
     // Check if the ESC key was pressed or the window was closed
@@ -231,6 +226,10 @@ func onWindowOpen(window *glfw.Window) {
     // 2nd attribute buffer : colors
     gl.EnableVertexAttribArray(1)
     gl.BindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+
+    changeColor(&gColorBufferData)
+
+    gl.BufferData(gl.ARRAY_BUFFER, len(gColorBufferData)*4, gl.Ptr(gColorBufferData), gl.STATIC_DRAW)
     gl.VertexAttribPointer(
       1, // attribute. No particular reason for 1, but must match the layout in the shader.
       3, // size
@@ -240,14 +239,29 @@ func onWindowOpen(window *glfw.Window) {
       nil, // array buffer offset
     )
 
+    //triangle
+    gl.EnableVertexAttribArray(2)
+    gl.BindBuffer(gl.ARRAY_BUFFER, triangleBuffer)
+    gl.VertexAttribPointer(2, 3, gl.FLOAT, false, 0, nil)
+
     //draw the cube!
     gl.DrawArrays(gl.TRIANGLES, 0, 12*3) // 12*3 indices starting at 0 -> 12 triangles -> 6 squares
 
+    gl.UniformMatrix4fv(matrixID, 1, false, &mvp2[0])
+    gl.DrawArrays(gl.TRIANGLES, 0, 3)
+
     gl.DisableVertexAttribArray(0)
     gl.DisableVertexAttribArray(1)
+    gl.DisableVertexAttribArray(2)
 
     // Swap buffers
     window.SwapBuffers()
     glfw.PollEvents()
+  }
+}
+
+func changeColor(colors *[]float32) {
+  for i := 0; i < len(*colors); i++ {
+    (*colors)[i] = rand.Float32()
   }
 }
